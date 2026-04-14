@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Mukja Lookup">
+<title>Customer Lookup</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+input::-webkit-outer-spin-button,input::-webkit-inner-spin-button{-webkit-appearance:none}
+input[type=number]{-moz-appearance:textfield}
+:root{--bg:#f5f5f7;--card:#fff;--text:#1d1d1f;--text2:#86868b;--text3:#aeaeb2;--accent:#0071e3;--green:#34c759;--red:#ff3b30;--orange:#ff9500;--border:rgba(0,0,0,.06);--border2:rgba(0,0,0,.1);--shadow:0 2px 12px rgba(0,0,0,.08);--shadow-lg:0 12px 40px rgba(0,0,0,.15);--radius:16px;--radius-sm:12px}
+html,body{height:100%;overflow:hidden;margin:0}
+body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--text);-webkit-font-smoothing:antialiased}
+#app{max-width:720px;margin:0 auto;height:100dvh;display:flex;flex-direction:column;padding:0 16px}
+
+/* Views */
+.view{display:flex;flex-direction:column;flex:1;min-height:0}
+.view.hide{display:none}
+
+/* Header */
+.header{padding:20px 0 14px;text-align:center;flex-shrink:0}
+.header h1{font-size:26px;font-weight:700;letter-spacing:-.5px}
+.header p{font-size:13px;color:var(--text2);margin-top:2px}
+
+/* Tabs */
+.tabs{display:flex;background:rgba(0,0,0,.05);border-radius:10px;padding:3px;margin-bottom:14px;flex-shrink:0}
+.tab{flex:1;padding:10px;border:none;background:transparent;border-radius:8px;font:600 14px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer;transition:all .2s}
+.tab.on{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+
+/* Import bar */
+.import-bar{background:var(--card);border-radius:var(--radius-sm);padding:10px 16px;border:1px solid var(--border);margin-bottom:12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+.badge{display:inline-flex;align-items:center;gap:5px;background:rgba(52,199,89,.1);color:var(--green);padding:4px 10px;border-radius:6px;font:600 12px 'DM Sans',sans-serif}
+.badge.empty{background:rgba(255,59,48,.08);color:var(--red)}
+.imp-btn{padding:6px 14px;background:rgba(0,0,0,.05);border:0;border-radius:8px;font:600 12px 'DM Sans',sans-serif;color:var(--text);cursor:pointer}
+.imp-btn:active{opacity:.7}
+
+/* Search */
+.search-box{position:relative;margin-bottom:12px;flex-shrink:0}
+.search-ico{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;color:var(--text3);pointer-events:none}
+.search-input{width:100%;padding:14px 14px 14px 44px;border:1.5px solid var(--border2);border-radius:var(--radius);font:16px 'DM Sans',sans-serif;background:var(--card);color:var(--text);outline:none}
+.search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(0,113,227,.12)}
+.search-input::placeholder{color:var(--text3)}
+
+/* Scroll */
+.scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:32px;min-height:0}
+
+/* Result cards */
+.r-card{background:var(--card);border-radius:var(--radius-sm);padding:14px 16px;cursor:pointer;border:1.5px solid var(--border);margin-bottom:8px;transition:all .15s}
+.r-card:active{transform:scale(.98)}
+.r-card.zero-card{opacity:.5}
+.r-top{display:flex;justify-content:space-between;align-items:center}
+.r-num{font:600 13px 'DM Sans',sans-serif;letter-spacing:.4px}
+.r-bal{font:700 18px 'DM Sans',sans-serif;color:var(--green)}
+.r-bal.zero{color:var(--red)}
+.r-meta{display:flex;gap:14px;margin-top:6px;font-size:12px;color:var(--text2);flex-wrap:wrap}
+
+/* Back button */
+.back-btn{display:flex;align-items:center;gap:6px;background:none;border:none;color:var(--accent);font:600 15px 'DM Sans',sans-serif;cursor:pointer;padding:12px 0;flex-shrink:0}
+.back-btn:active{opacity:.6}
+
+/* Detail cards */
+.d-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:14px}
+.d-lbl{font:600 11px 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:1px;color:var(--text2);margin-bottom:4px}
+.d-bal{font:700 42px 'DM Sans',sans-serif;color:var(--green);letter-spacing:-1px}
+.d-bal.zero{color:var(--red)}
+.d-sub{font-size:14px;color:var(--text2);margin-top:4px}
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.d-item label{display:block;font:600 10px 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:3px}
+.d-item span{font:500 14px 'DM Sans',sans-serif}
+.d-item .sm{font-size:12px;word-break:break-all}
+
+/* Points ref */
+.pts-ref{display:flex;gap:6px;margin-bottom:14px}
+.pts-ref-chip{flex:1;text-align:center;background:rgba(0,113,227,.04);border-radius:8px;padding:6px 4px;font-size:11px;color:var(--text2)}
+.pts-ref-chip b{display:block;font-size:13px;color:var(--accent);font-weight:700}
+
+/* Redeem button */
+.redeem-btn{width:100%;padding:20px;border:2px solid rgba(0,113,227,.2);border-radius:16px;background:rgba(0,113,227,.04);cursor:pointer;text-align:center;transition:all .15s;font-family:inherit}
+.redeem-btn:active{transform:scale(.97);background:rgba(0,113,227,.12)}
+.rb-pts{font:700 28px 'DM Sans',sans-serif;color:var(--accent)}
+.rb-val{font:600 16px 'DM Sans',sans-serif;color:var(--green);margin-top:4px}
+.rb-lbl{font:400 12px 'DM Sans',sans-serif;color:var(--text2);margin-top:6px}
+.no-pts{font:600 14px 'DM Sans',sans-serif;color:var(--red)}
+
+/* GC deduct */
+.gc-row{display:flex;gap:8px;margin-bottom:8px}
+.gc-input{flex:1;padding:12px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);font:15px 'DM Sans',sans-serif;outline:none;background:var(--card)}
+.gc-input:focus{border-color:var(--accent)}
+.gc-btn{padding:12px 22px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);font:600 14px 'DM Sans',sans-serif;cursor:pointer}
+.gc-btn:active{transform:scale(.96)}
+.gc-btn:disabled{opacity:.35;pointer-events:none}
+.gc-note{width:100%;padding:10px 12px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);font:13px 'DM Sans',sans-serif;outline:none}
+
+/* Undo button */
+.undo-btn{display:inline-flex;align-items:center;gap:4px;background:rgba(255,149,0,.1);color:var(--orange);border:1px solid rgba(255,149,0,.2);border-radius:8px;padding:6px 12px;font:600 12px 'DM Sans',sans-serif;cursor:pointer;margin-top:8px}
+.undo-btn:active{opacity:.7}
+
+/* Transaction items */
+.tx-item{display:flex;justify-content:space-between;align-items:flex-start;padding:12px 14px;background:rgba(255,59,48,.03);border-radius:10px;margin-bottom:6px;border:1px solid rgba(255,59,48,.08)}
+.tx-amt{font:700 15px 'DM Sans',sans-serif;color:var(--red)}
+.tx-note{font-size:12px;color:var(--text2);margin-top:2px}
+.tx-date{font-size:12px;color:var(--text2);white-space:nowrap}
+
+/* Confirm overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#fff;border-radius:20px;padding:28px 24px;max-width:340px;width:90%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:8px}
+.modal .m-big{font-size:28px;font-weight:700;color:var(--accent);margin:12px 0}
+.modal .m-sub{font-size:14px;color:var(--text2);margin-bottom:4px}
+.modal .m-note{width:100%;padding:10px 12px;border:1.5px solid var(--border2);border-radius:10px;font:13px 'DM Sans',sans-serif;outline:none;margin:12px 0 16px}
+.modal-btns{display:flex;gap:10px}
+.modal-btns button{flex:1;padding:14px;border:none;border-radius:12px;font:600 15px 'DM Sans',sans-serif;cursor:pointer}
+.m-cancel{background:rgba(0,0,0,.06);color:var(--text)}
+.m-ok{background:var(--accent);color:#fff}
+.m-danger{background:var(--red);color:#fff}
+
+/* Setup screen */
+.setup{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;padding:32px 20px;text-align:center}
+.setup h2{font-size:24px;font-weight:700;margin-bottom:8px}
+.setup p{font-size:14px;color:var(--text2);margin-bottom:24px;max-width:400px;line-height:1.5}
+.sf{width:100%;max-width:400px}
+.sf-label{display:block;text-align:left;font:600 12px 'DM Sans',sans-serif;text-transform:uppercase;letter-spacing:.5px;color:var(--text2);margin-bottom:4px}
+.sf-input{width:100%;padding:12px;border:1.5px solid var(--border2);border-radius:var(--radius-sm);font:14px 'DM Sans',sans-serif;outline:none;margin-bottom:14px}
+.sf-input:focus{border-color:var(--accent)}
+.sf-btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:0;border-radius:var(--radius-sm);font:600 15px 'DM Sans',sans-serif;cursor:pointer;margin-bottom:8px}
+.sf-btn.secondary{background:rgba(0,0,0,.06);color:var(--text)}
+.sf-btn:active{transform:scale(.98)}
+
+/* Admin dashboard */
+.admin-card{background:var(--card);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow);border:1px solid var(--border);margin-bottom:14px}
+.admin-stat{text-align:center;padding:16px 0}
+.admin-stat .stat-val{font:700 36px 'DM Sans',sans-serif;color:var(--red);letter-spacing:-1px}
+.admin-stat .stat-label{font:500 13px 'DM Sans',sans-serif;color:var(--text2);margin-top:4px}
+.admin-row{display:flex;gap:12px;margin-bottom:14px}
+.admin-row .admin-card{flex:1;margin-bottom:0}
+.admin-small{text-align:center}
+.admin-small .sv{font:700 24px 'DM Sans',sans-serif;color:var(--text)}
+.admin-small .sl{font:500 11px 'DM Sans',sans-serif;color:var(--text2);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.export-btn{width:100%;padding:14px;background:var(--accent);color:#fff;border:0;border-radius:var(--radius-sm);font:600 14px 'DM Sans',sans-serif;cursor:pointer}
+.export-btn:active{transform:scale(.96)}
+
+/* PIN screen */
+.pin-dots{display:flex;gap:12px;justify-content:center;margin:20px 0}
+.pin-dot{width:16px;height:16px;border-radius:50%;background:rgba(0,0,0,.1)}
+.pin-dot.filled{background:var(--accent)}
+.pin-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;max-width:280px;margin:0 auto}
+.pin-key{padding:18px;border:none;border-radius:12px;background:var(--card);font:600 22px 'DM Sans',sans-serif;color:var(--text);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.pin-key:active{background:rgba(0,0,0,.05)}
+.pin-key.del{font-size:14px;color:var(--red)}
+
+/* Misc */
+.empty{text-align:center;padding:48px 20px;color:var(--text2);font-size:14px}
+.toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);padding:12px 24px;border-radius:14px;font:600 14px 'DM Sans',sans-serif;color:#fff;z-index:200;box-shadow:var(--shadow-lg)}
+.toast.ok{background:var(--green)}.toast.err{background:var(--red)}
+.gear-btn{position:absolute;top:20px;right:16px;background:0;border:0;cursor:pointer;color:var(--text3);padding:4px}
+
+@media(min-width:768px){#app{max-width:800px;padding:0 32px}.d-grid{grid-template-columns:1fr 1fr 1fr}.admin-row{gap:16px}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast-c"></div>
+<div id="modal-c"></div>
+<script>
+// ═══════════════════════════════════════
+// CONFIG & STATE
+// ═══════════════════════════════════════
+var sb=null,tab='rewards',sel=null,gcCount=0,rwCount=0;
+var ADMIN_PIN='5531';
+
+function loadCfg(){try{return JSON.parse(localStorage.getItem('mukja-cfg'))}catch(e){return null}}
+function saveCfg(url,key){localStorage.setItem('mukja-cfg',JSON.stringify({url:url,key:key}))}
+function clearCfg(){localStorage.removeItem('mukja-cfg')}
+
+function connectSB(url,key){
+  sb=supabase.createClient(url,key);
+  loadCounts();
+}
+
+function loadCounts(){
+  sb.from('gift_cards').select('*',{count:'exact',head:true}).then(function(r){gcCount=r.count||0;renderBadge()});
+  sb.from('rewards_members').select('*',{count:'exact',head:true}).then(function(r){rwCount=r.count||0;renderBadge()});
+}
+
+// ═══════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════
+function fP(p){var d=String(p).replace(/\D/g,'');return d.length===10?'('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6):d}
+function fC(c){return String(c).replace(/(.{4})/g,'$1 ').trim()}
+function fM(n){return '$'+Number(n).toFixed(2)}
+function p2c(pts){return pts/10}
+function fD(d){if(!d)return'\u2014';var dt=new Date(d);return dt.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+dt.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ═══════════════════════════════════════
+// ROUTING
+// ═══════════════════════════════════════
+function route(){
+  var cfg=loadCfg();
+  if(window.location.hash==='#admin'){
+    if(!cfg){renderSetup();return}
+    if(!sb)connectSB(cfg.url,cfg.key);
+    renderPinScreen();
+  }else if(window.location.hash==='#settings'){
+    renderSetup(true);
+  }else{
+    if(!cfg){renderSetup();return}
+    if(!sb)connectSB(cfg.url,cfg.key);
+    renderSearchView();
+  }
+}
+window.addEventListener('hashchange',route);
+
+// ═══════════════════════════════════════
+// SETUP SCREEN
+// ═══════════════════════════════════════
+function renderSetup(isSettings){
+  var cfg=loadCfg()||{url:'',key:''};
+  document.getElementById('app').innerHTML=
+    '<div class="view"><div class="setup">'+
+    '<div style="font-size:56px;margin-bottom:16px">'+(isSettings?'\u2699\uFE0F':'\uD83D\uDD10')+'</div>'+
+    '<h2>'+(isSettings?'Settings':'Connect Database')+'</h2>'+
+    '<p>Enter your Supabase project URL and anon key.<br>Find these in Supabase \u2192 Settings \u2192 API.</p>'+
+    '<div class="sf">'+
+    '<label class="sf-label">Project URL</label>'+
+    '<input class="sf-input" id="cfg-url" placeholder="https://xxxxx.supabase.co" value="'+esc(cfg.url)+'">'+
+    '<label class="sf-label">Anon Key</label>'+
+    '<input class="sf-input" id="cfg-key" placeholder="eyJhbGci..." value="'+esc(cfg.key)+'">'+
+    '<button class="sf-btn" id="cfg-save">Connect</button>'+
+    (isSettings?'<button class="sf-btn secondary" id="cfg-back">Back</button><button class="sf-btn" id="cfg-clear" style="background:var(--red);margin-top:4px">Disconnect</button>':'')+
+    '</div></div></div>';
+  document.getElementById('cfg-save').addEventListener('click',function(){
+    var u=document.getElementById('cfg-url').value.trim();
+    var k=document.getElementById('cfg-key').value.trim();
+    if(!u||!k){showToast('Fill in both fields','err');return}
+    saveCfg(u,k);connectSB(u,k);window.location.hash='';route();
+  });
+  if(isSettings){
+    document.getElementById('cfg-back').addEventListener('click',function(){window.location.hash='';route()});
+    document.getElementById('cfg-clear').addEventListener('click',function(){clearCfg();sb=null;route()});
+  }
+}
+
+// ═══════════════════════════════════════
+// SEARCH VIEW
+// ═══════════════════════════════════════
+function renderSearchView(){
+  var isGC=tab==='giftcards';
+  document.getElementById('app').innerHTML=
+    '<div class="view" id="search-view" style="position:relative">'+
+    '<button class="gear-btn" id="gear-btn">\u2699\uFE0F</button>'+
+    '<div class="header"><h1>Customer Lookup</h1><p>Gift Cards & Rewards Points</p></div>'+
+    '<div class="tabs">'+
+    '<button class="tab'+(tab==='rewards'?' on':'')+'" id="tab-rw">Rewards Points</button>'+
+    '<button class="tab'+(tab==='giftcards'?' on':'')+'" id="tab-gc">Gift Cards</button>'+
+    '</div>'+
+    '<div class="import-bar" id="import-bar"></div>'+
+    '<div class="search-box"><span class="search-ico">\uD83D\uDD0D</span>'+
+    '<input class="search-input" id="search" placeholder="'+(isGC?'Search by card number...':'Search by phone, email, or card #...')+'">'+'</div>'+
+    '<div class="scroll" id="results"></div>'+
+    '</div>';
+  renderBadge();
+  document.getElementById('tab-rw').addEventListener('click',function(){tab='rewards';renderSearchView()});
+  document.getElementById('tab-gc').addEventListener('click',function(){tab='giftcards';renderSearchView()});
+  document.getElementById('gear-btn').addEventListener('click',function(){window.location.hash='#settings'});
+  document.getElementById('search').addEventListener('input',function(e){
+    clearTimeout(window._st);window._st=setTimeout(function(){doSearch(e.target.value)},300);
+  });
+  // Restore search if coming back
+  if(window._lastQuery){
+    document.getElementById('search').value=window._lastQuery;
+    doSearch(window._lastQuery);
+  }
+}
+
+function renderBadge(){
+  var el=document.getElementById('import-bar');if(!el)return;
+  var n=tab==='giftcards'?gcCount:rwCount;
+  el.innerHTML='<span class="badge'+(n?'':' empty')+'">'+(n?'\u2713 '+n+' '+(tab==='giftcards'?'cards':'members')+' loaded':'No '+(tab==='giftcards'?'gift card':'rewards')+' data')+'</span>'+
+    '<button class="imp-btn" id="imp-btn">'+(n?'Re-import':'Import')+'</button>';
+  document.getElementById('imp-btn').addEventListener('click',function(){triggerImport()});
+}
+
+// ═══════════════════════════════════════
+// SEARCH
+// ═══════════════════════════════════════
+function doSearch(val){
+  var q=val.trim().toLowerCase().replace(/[() \-]/g,'');
+  window._lastQuery=val;
+  var el=document.getElementById('results');
+  if(!q||q.length<3){el.innerHTML='';return}
+
+  if(tab==='giftcards'){
+    sb.from('gift_cards').select('*').ilike('card_number','%'+q+'%').limit(20).then(function(r){
+      showResults((r.data||[]).map(function(g){return{c:g.card_number,f:g.first_date,l:g.last_date,i:Number(g.initial_amount),b:Number(g.balance),_t:'gc',_id:g.id}}));
+    });
+  }else{
+    Promise.all([
+      sb.from('rewards_members').select('*').ilike('phone','%'+q+'%').limit(10),
+      sb.from('rewards_members').select('*').ilike('email','%'+q+'%').limit(10),
+      sb.from('rewards_members').select('*').ilike('card_number','%'+q+'%').limit(10)
+    ]).then(function(results){
+      var map={};
+      results.forEach(function(r){(r.data||[]).forEach(function(m){map[m.card_number]=m})});
+      var arr=Object.values(map).slice(0,20).map(function(m){return{e:m.email||'',p:m.phone||'',c:m.card_number,f:m.first_date,l:m.last_date,a:m.accrue_count,r:m.redeem_count,pts:m.points,_t:'rw',_id:m.id}});
+      showResults(arr);
+    });
+  }
+}
+
+function showResults(res){
+  var el=document.getElementById('results');
+  if(!res.length){el.innerHTML='<div class="empty">No results found</div>';return}
+  // Load tx for all cards to compute balances
+  var cards=res.map(function(r){return r.c});
+  var tp=tab==='giftcards'?'giftcard':'rewards';
+  sb.from('transactions').select('*').in('card_number',cards).eq('type',tp).then(function(txr){
+    var txs=txr.data||[];
+    var txMap={};
+    txs.forEach(function(t){if(!txMap[t.card_number])txMap[t.card_number]=[];txMap[t.card_number].push(t)});
+
+    var h='';
+    res.forEach(function(r,i){
+      var myTx=txMap[r.c]||[];
+      var ded=myTx.reduce(function(s,t){return s+Number(t.amount)},0);
+      var bal=r._t==='gc'?Math.round((r.b-ded)*100)/100:r.pts-ded;
+      var lastD=r.l;
+      if(myTx.length>0){var latest=myTx[0].created_at;for(var j=1;j<myTx.length;j++){if(myTx[j].created_at>latest)latest=myTx[j].created_at}lastD=latest.slice(0,10)}
+
+      h+='<div class="r-card'+(bal<=0?' zero-card':'')+'" data-idx="'+i+'"><div class="r-top"><span class="r-num">'+fC(r.c)+'</span><span class="r-bal'+(bal<=0?' zero':'')+'">'+
+      (r._t==='gc'?fM(bal):bal+' pts')+'</span></div><div class="r-meta">'+
+      (r._t==='rw'&&r.p?'<span>\uD83D\uDCF1 '+fP(r.p)+'</span>':'')+
+      (r._t==='rw'&&r.e?'<span>\u2709 '+esc(r.e)+'</span>':'')+
+      '<span>Last: '+(lastD||'\u2014')+'</span></div></div>';
+    });
+    el.innerHTML=h;
+    window._res=res;
+    el.querySelectorAll('.r-card').forEach(function(card){
+      card.addEventListener('click',function(){openDetail(parseInt(this.dataset.idx))});
+    });
+  });
+}
+
+// ═══════════════════════════════════════
+// DETAIL VIEW
+// ═══════════════════════════════════════
+function openDetail(i){
+  sel=window._res[i];
+  var tp=sel._t==='gc'?'giftcard':'rewards';
+  sb.from('transactions').select('*').eq('card_number',sel.c).eq('type',tp).order('created_at',{ascending:true}).then(function(r){
+    window._selTx=r.data||[];
+    renderDetailView();
+  });
+}
+
+function renderDetailView(){
+  if(!sel)return;
+  var isG=sel._t==='gc';
+  var stx=window._selTx||[];
+  var ded=stx.reduce(function(s,t){return s+Number(t.amount)},0);
+  var bal=isG?Math.round((sel.b-ded)*100)/100:sel.pts-ded;
+  var lastD=sel.l;
+  if(stx.length>0){var latest=stx[0].created_at;for(var j=1;j<stx.length;j++){if(stx[j].created_at>latest)latest=stx[j].created_at}lastD=latest.slice(0,10)}
+
+  var h='<div class="view" id="detail-view">'+
+    '<button class="back-btn" id="back-btn">\u2190 Back to results</button>'+
+    '<div class="scroll">';
+
+  // Info card
+  h+='<div class="d-card"><div class="d-lbl">'+(isG?'Gift Card Balance':'Points Balance')+'</div>'+
+    '<div class="d-bal'+(bal<=0?' zero':'')+'">'+(isG?fM(bal):bal+' pts')+'</div>'+
+    (!isG?'<div class="d-sub">Cash value: '+fM(p2c(bal))+'</div>':'')+
+    '<div class="d-grid">'+
+    '<div class="d-item"><label>Card Number</label><span>'+fC(sel.c)+'</span></div>'+
+    (isG?'<div class="d-item"><label>Initial Amount</label><span>'+fM(sel.i)+'</span></div>':'')+
+    (!isG&&sel.p?'<div class="d-item"><label>Phone</label><span>'+fP(sel.p)+'</span></div>':'')+
+    (!isG&&sel.e?'<div class="d-item"><label>Email</label><span class="sm">'+esc(sel.e)+'</span></div>':'')+
+    '<div class="d-item"><label>First Trans.</label><span class="sm">'+(sel.f||'\u2014')+'</span></div>'+
+    '<div class="d-item"><label>Last Trans.</label><span class="sm">'+(lastD||'\u2014')+'</span></div>'+
+    (!isG?'<div class="d-item"><label>Accrue Trans.</label><span>'+sel.a+'</span></div><div class="d-item"><label>Redeem Trans.</label><span>'+(sel.r+stx.length)+'</span></div>':'')+
+    '</div></div>';
+
+  // Points ref
+  if(!isG){
+    h+='<div class="pts-ref"><div class="pts-ref-chip"><b>10 pts</b>$1.00</div><div class="pts-ref-chip"><b>50 pts</b>$5.00</div><div class="pts-ref-chip"><b>100 pts</b>$10.00</div></div>';
+  }
+
+  // Redeem card
+  h+='<div class="d-card">';
+  if(!isG){
+    if(bal>0)h+='<button class="redeem-btn" id="redeem-btn"><div class="rb-pts">'+bal+' pts</div><div class="rb-val">'+fM(p2c(bal))+' off bill</div><div class="rb-lbl">Tap to redeem all points</div></button>';
+    else h+='<div class="no-pts">No points available to redeem</div>';
+  }else{
+    if(bal>0)h+='<h3 style="font-size:14px;font-weight:600;margin-bottom:10px">Redeem Balance</h3><div class="gc-row"><input class="gc-input" id="d-amt" type="number" step="0.01" min="0" placeholder="Amount ($)"><button class="gc-btn" id="d-btn" disabled>Deduct</button></div><input class="gc-note" id="d-note" placeholder="Note (optional)">';
+    else h+='<div class="no-pts">No balance remaining</div>';
+  }
+  h+='</div>';
+
+  // Transaction history + undo
+  if(stx.length>0){
+    h+='<div class="d-card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px">Transaction History ('+stx.length+')</h3>';
+    var rev=stx.slice().reverse();
+    for(var i=0;i<rev.length;i++){
+      var tx=rev[i];
+      h+='<div class="tx-item"><div><div class="tx-amt">\u2212 '+(tx.type==='giftcard'?fM(tx.amount):Number(tx.amount)+' pts ('+fM(tx.cash_value)+')')+'</div>'+(tx.note?'<div class="tx-note">'+esc(tx.note)+'</div>':'')+'</div><div class="tx-date">'+fD(tx.created_at)+'</div></div>';
+    }
+    h+='<button class="undo-btn" id="undo-btn">\u21A9 Undo last transaction</button>';
+    h+='</div>';
+  }
+
+  h+='</div></div>';
+  document.getElementById('app').innerHTML=h;
+
+  // Event handlers
+  document.getElementById('back-btn').addEventListener('click',function(){renderSearchView()});
+  if(!isG&&bal>0){
+    document.getElementById('redeem-btn').addEventListener('click',function(){confirmRedeem(bal,p2c(bal))});
+  }
+  if(isG&&bal>0){
+    var amtEl=document.getElementById('d-amt');
+    var btnEl=document.getElementById('d-btn');
+    amtEl.addEventListener('input',function(){btnEl.disabled=!amtEl.value});
+    btnEl.addEventListener('click',function(){confirmGCDeduct()});
+  }
+  if(stx.length>0){
+    document.getElementById('undo-btn').addEventListener('click',function(){confirmUndo(stx[stx.length-1])});
+  }
+}
+
+// ═══════════════════════════════════════
+// CONFIRMS & ACTIONS
+// ═══════════════════════════════════════
+function showModal(html){document.getElementById('modal-c').innerHTML=html}
+function closeModal(){document.getElementById('modal-c').innerHTML=''}
+
+function confirmRedeem(pts,val){
+  showModal('<div class="overlay" id="overlay-bg"><div class="modal"><h3>Confirm Redemption</h3><div class="m-big">'+pts+' pts</div><div class="m-sub">'+fM(val)+' off bill</div><input class="m-note" id="m-note" placeholder="Note (optional)"><div class="modal-btns"><button class="m-cancel" id="m-cancel">Cancel</button><button class="m-ok" id="m-ok">Redeem</button></div></div></div>');
+  document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
+  document.getElementById('m-cancel').addEventListener('click',closeModal);
+  document.getElementById('m-ok').addEventListener('click',function(){
+    var n=(document.getElementById('m-note')||{}).value||'Points redemption';
+    sb.from('transactions').insert({card_number:sel.c,type:'rewards',amount:pts,cash_value:val,note:n}).then(function(r){
+      if(r.error){showToast('Error: '+r.error.message,'err');return}
+      closeModal();showToast('Redeemed '+pts+' pts ('+fM(val)+' off)','ok');
+      openDetail(window._res.indexOf(sel));
+    });
+  });
+}
+
+function confirmGCDeduct(){
+  var amt=parseFloat(document.getElementById('d-amt').value);
+  if(isNaN(amt)||amt<=0){showToast('Enter a valid amount','err');return}
+  var stx=window._selTx||[];
+  var ded=stx.reduce(function(s,t){return s+Number(t.amount)},0);
+  var bal=Math.round((sel.b-ded)*100)/100;
+  if(amt>bal){showToast('Exceeds balance','err');return}
+  var note=(document.getElementById('d-note')||{}).value||'Gift card redemption';
+
+  showModal('<div class="overlay" id="overlay-bg"><div class="modal"><h3>Confirm Deduction</h3><div class="m-big">'+fM(amt)+'</div><div class="m-sub">from gift card '+fC(sel.c)+'</div><div class="modal-btns"><button class="m-cancel" id="m-cancel">Cancel</button><button class="m-ok" id="m-ok">Deduct</button></div></div></div>');
+  document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
+  document.getElementById('m-cancel').addEventListener('click',closeModal);
+  document.getElementById('m-ok').addEventListener('click',function(){
+    sb.from('transactions').insert({card_number:sel.c,type:'giftcard',amount:amt,cash_value:amt,note:note}).then(function(r){
+      if(r.error){showToast('Error: '+r.error.message,'err');return}
+      closeModal();showToast('Deducted '+fM(amt),'ok');
+      openDetail(window._res.indexOf(sel));
+    });
+  });
+}
+
+function confirmUndo(tx){
+  showModal('<div class="overlay" id="overlay-bg"><div class="modal"><h3>Undo Last Transaction?</h3><div class="m-big">\u2212 '+(tx.type==='giftcard'?fM(tx.amount):Number(tx.amount)+' pts')+'</div><div class="m-sub">'+fD(tx.created_at)+'</div><div class="modal-btns"><button class="m-cancel" id="m-cancel">Keep</button><button class="m-danger" id="m-del">Undo</button></div></div></div>');
+  document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
+  document.getElementById('m-cancel').addEventListener('click',closeModal);
+  document.getElementById('m-del').addEventListener('click',function(){
+    sb.from('transactions').delete().eq('id',tx.id).then(function(r){
+      if(r.error){showToast('Error: '+r.error.message,'err');return}
+      closeModal();showToast('Transaction undone','ok');
+      openDetail(window._res.indexOf(sel));
+    });
+  });
+}
+
+// ═══════════════════════════════════════
+// IMPORT
+// ═══════════════════════════════════════
+function triggerImport(){
+  var inp=document.createElement('input');inp.type='file';inp.accept='.xlsx,.xls,.csv';
+  inp.addEventListener('change',function(){if(inp.files[0])doImport(inp.files[0])});
+  inp.click();
+}
+
+function doImport(file){
+  showToast('Importing...','ok');
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var wb=XLSX.read(e.target.result);
+    var rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+    if(tab==='giftcards'){importGC(rows)}else{importRW(rows)}
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function parseXLDate(val){
+  if(!val)return null;
+  if(typeof val==='number'){var d=new Date((val-25569)*86400000);return d.toISOString().slice(0,10)}
+  var d=new Date(val);return isNaN(d.getTime())?null:d.toISOString().slice(0,10);
+}
+
+function importGC(rows){
+  sb.from('gift_cards').delete().neq('id',0).then(function(){
+    var recs=rows.map(function(r){return{card_number:String(r['Card Number']||''),first_date:parseXLDate(r['First Trans. Date']),initial_amount:Number(r['Initial Amount ($)']||0),last_date:parseXLDate(r['Last Trans. Date']),balance:Number(r['Current Balance ($)']||0)}});
+    var chain=Promise.resolve();
+    for(var i=0;i<recs.length;i+=200){(function(batch){chain=chain.then(function(){return sb.from('gift_cards').upsert(batch,{onConflict:'card_number'})})})(recs.slice(i,i+200))}
+    chain.then(function(){gcCount=recs.length;renderBadge();showToast(recs.length+' gift cards imported','ok')}).catch(function(e){showToast('Error: '+e.message,'err')});
+  });
+}
+
+function importRW(rows){
+  sb.from('rewards_members').delete().neq('id',0).then(function(){
+    var recs=rows.map(function(r){return{email:String(r['Email']||'').toLowerCase().trim(),phone:String(r['Phone number']||'').replace(/\.0$/,''),card_number:String(r['Card Number']||''),first_date:parseXLDate(r['First Trans. Date']),accrue_count:Number(r['# Accrue Trans.']||0),redeem_count:Number(r['# Redeem Trans.']||0),last_date:parseXLDate(r['Last Trans. Date']),points:Number(r['Total Points']||0)}});
+    var chain=Promise.resolve();
+    for(var i=0;i<recs.length;i+=200){(function(batch){chain=chain.then(function(){return sb.from('rewards_members').upsert(batch,{onConflict:'card_number'})})})(recs.slice(i,i+200))}
+    chain.then(function(){rwCount=recs.length;renderBadge();showToast(recs.length+' rewards members imported','ok')}).catch(function(e){showToast('Error: '+e.message,'err')});
+  });
+}
+
+// ═══════════════════════════════════════
+// ADMIN - PIN SCREEN
+// ═══════════════════════════════════════
+function renderPinScreen(){
+  var pin='';
+  function draw(){
+    var dots='';for(var i=0;i<4;i++)dots+='<div class="pin-dot'+(i<pin.length?' filled':'')+'"></div>';
+    var keys='';
+    [1,2,3,4,5,6,7,8,9,'',0,'\u232B'].forEach(function(k){
+      if(k==='')keys+='<div></div>';
+      else keys+='<button class="pin-key'+(k==='\u232B'?' del':'')+'" data-k="'+k+'">'+k+'</button>';
+    });
+    document.getElementById('app').innerHTML=
+      '<div class="view"><div class="setup">'+
+      '<div style="font-size:48px;margin-bottom:16px">\uD83D\uDD12</div>'+
+      '<h2>Admin Access</h2><p>Enter PIN to continue</p>'+
+      '<div class="pin-dots">'+dots+'</div>'+
+      '<div class="pin-grid">'+keys+'</div>'+
+      '<button class="back-btn" id="pin-back" style="margin-top:20px">\u2190 Back</button>'+
+      '</div></div>';
+    document.querySelectorAll('.pin-key').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var k=this.dataset.k;
+        if(k==='\u232B'){pin=pin.slice(0,-1);draw();return}
+        if(pin.length>=4)return;
+        pin+=k;
+        draw();
+        if(pin.length===4){
+          if(pin===ADMIN_PIN){renderAdminDashboard()}
+          else{showToast('Wrong PIN','err');pin='';setTimeout(draw,300)}
+        }
+      });
+    });
+    document.getElementById('pin-back').addEventListener('click',function(){window.location.hash='';route()});
+  }
+  draw();
+}
+
+// ═══════════════════════════════════════
+// ADMIN DASHBOARD
+// ═══════════════════════════════════════
+function renderAdminDashboard(){
+  document.getElementById('app').innerHTML='<div class="view"><div class="header"><h1>Admin Dashboard</h1><p>Liability Overview</p></div><div class="scroll" id="admin-content"><div class="empty">Loading...</div></div></div>';
+
+  Promise.all([
+    sb.from('gift_cards').select('card_number,balance'),
+    sb.from('rewards_members').select('card_number,points'),
+    sb.from('transactions').select('*').order('created_at',{ascending:false})
+  ]).then(function(results){
+    var gcs=results[0].data||[];
+    var rws=results[1].data||[];
+    var txs=results[2].data||[];
+
+    // Build tx map
+    var txMap={};
+    txs.forEach(function(t){var k=t.type+':'+t.card_number;if(!txMap[k])txMap[k]=0;txMap[k]+=Number(t.amount)});
+
+    // GC stats
+    var gcTotal=0,gcActive=0;
+    gcs.forEach(function(g){
+      var ded=txMap['giftcard:'+g.card_number]||0;
+      var rem=Math.round((Number(g.balance)-ded)*100)/100;
+      if(rem>0){gcTotal+=rem;gcActive++}
+    });
+
+    // RW stats
+    var rwTotal=0,rwActive=0;
+    rws.forEach(function(r){
+      var ded=txMap['rewards:'+r.card_number]||0;
+      var rem=Number(r.points)-ded;
+      if(rem>0){rwTotal+=p2c(rem);rwActive++}
+    });
+
+    var combined=gcTotal+rwTotal;
+
+    var h='<div class="admin-card"><div class="admin-stat"><div class="stat-val">'+fM(combined)+'</div><div class="stat-label">Total Combined Liability</div></div></div>'+
+    '<div class="admin-row">'+
+    '<div class="admin-card admin-small"><div class="sv">'+fM(gcTotal)+'</div><div class="sl">Gift Card Liability</div></div>'+
+    '<div class="admin-card admin-small"><div class="sv">'+fM(rwTotal)+'</div><div class="sl">Rewards Liability</div></div>'+
+    '</div>'+
+    '<div class="admin-row">'+
+    '<div class="admin-card admin-small"><div class="sv">'+gcActive+'</div><div class="sl">Cards with Balance</div></div>'+
+    '<div class="admin-card admin-small"><div class="sv">'+rwActive+'</div><div class="sl">Members with Points</div></div>'+
+    '</div>'+
+    '<div class="admin-row">'+
+    '<div class="admin-card admin-small"><div class="sv">'+gcs.length+'</div><div class="sl">Total Gift Cards</div></div>'+
+    '<div class="admin-card admin-small"><div class="sv">'+rws.length+'</div><div class="sl">Total Members</div></div>'+
+    '</div>'+
+    '<div class="admin-card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px">Transactions ('+txs.length+')</h3>'+
+    '<button class="export-btn" id="export-btn">\u2B07 Export All Transactions to Spreadsheet</button></div>'+
+    '<button class="back-btn" id="admin-back" style="padding-bottom:24px">\u2190 Back to lookup</button>';
+
+    document.getElementById('admin-content').innerHTML=h;
+    document.getElementById('export-btn').addEventListener('click',function(){exportTx(txs)});
+    document.getElementById('admin-back').addEventListener('click',function(){window.location.hash='';route()});
+  });
+}
+
+function exportTx(txs){
+  var rows=[['Date','Type','Card Number','Amount','Cash Value','Note']];
+  txs.forEach(function(t){
+    rows.push([t.created_at,t.type,t.card_number,t.amount,t.cash_value,t.note||'']);
+  });
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  var wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'Transactions');
+  XLSX.writeFile(wb,'Mukja_Transactions_'+new Date().toISOString().slice(0,10)+'.xlsx');
+  showToast('Downloaded!','ok');
+}
+
+// ═══════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════
+function showToast(m,t){var c=document.getElementById('toast-c');c.innerHTML='<div class="toast '+t+'">'+esc(m)+'</div>';setTimeout(function(){c.innerHTML=''},2500)}
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+route();
+</script>
+</body></html>
