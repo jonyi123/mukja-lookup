@@ -283,8 +283,7 @@ function renderBadge(){
   var el=document.getElementById('import-bar');if(!el)return;
   var n=tab==='giftcards'?gcCount:rwCount;
   el.innerHTML='<span class="badge'+(n?'':' empty')+'">'+(n?'\u2713 '+n+' '+(tab==='giftcards'?'cards':'members')+' loaded':'No '+(tab==='giftcards'?'gift card':'rewards')+' data')+'</span>'+
-    '<button class="imp-btn" id="imp-btn">'+(n?'Re-import':'Import')+'</button>';
-  document.getElementById('imp-btn').addEventListener('click',function(){triggerImport()});
+    '';
 }
 
 // ═══════════════════════════════════════
@@ -518,7 +517,7 @@ function importGC(rows){
     var recs=rows.map(function(r){return{card_number:String(r['Card Number']||''),first_date:parseXLDate(r['First Trans. Date']),initial_amount:Number(r['Initial Amount ($)']||0),last_date:parseXLDate(r['Last Trans. Date']),balance:Number(r['Current Balance ($)']||0)}});
     var chain=Promise.resolve();
     for(var i=0;i<recs.length;i+=200){(function(batch){chain=chain.then(function(){return sb.from('gift_cards').upsert(batch,{onConflict:'card_number'})})})(recs.slice(i,i+200))}
-    chain.then(function(){gcCount=recs.length;renderBadge();showToast(recs.length+' gift cards imported','ok')}).catch(function(e){showToast('Error: '+e.message,'err')});
+    chain.then(function(){gcCount=recs.length;renderBadge();showToast(recs.length+' gift cards imported','ok');if(window.location.hash==='#admin')renderAdminDashboard()}).catch(function(e){showToast('Error: '+e.message,'err')});
   });
 }
 
@@ -527,7 +526,7 @@ function importRW(rows){
     var recs=rows.map(function(r){return{email:String(r['Email']||'').toLowerCase().trim(),phone:String(r['Phone number']||'').replace(/\.0$/,''),card_number:String(r['Card Number']||''),first_date:parseXLDate(r['First Trans. Date']),accrue_count:Number(r['# Accrue Trans.']||0),redeem_count:Number(r['# Redeem Trans.']||0),last_date:parseXLDate(r['Last Trans. Date']),points:Number(r['Total Points']||0)}});
     var chain=Promise.resolve();
     for(var i=0;i<recs.length;i+=200){(function(batch){chain=chain.then(function(){return sb.from('rewards_members').upsert(batch,{onConflict:'card_number'})})})(recs.slice(i,i+200))}
-    chain.then(function(){rwCount=recs.length;renderBadge();showToast(recs.length+' rewards members imported','ok')}).catch(function(e){showToast('Error: '+e.message,'err')});
+    chain.then(function(){rwCount=recs.length;renderBadge();showToast(recs.length+' rewards members imported','ok');if(window.location.hash==='#admin')renderAdminDashboard()}).catch(function(e){showToast('Error: '+e.message,'err')});
   });
 }
 
@@ -619,12 +618,17 @@ function renderAdminDashboard(){
     '<div class="admin-card admin-small"><div class="sv">'+gcs.length+'</div><div class="sl">Total Gift Cards</div></div>'+
     '<div class="admin-card admin-small"><div class="sv">'+rws.length+'</div><div class="sl">Total Members</div></div>'+
     '</div>'+
+    '<div class="admin-card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px">Import Data</h3>'+
+    '<button class="export-btn" id="imp-rw-btn" style="margin-bottom:8px;background:var(--green)">\u2B06 Import Rewards Members (.xlsx)</button>'+
+    '<button class="export-btn" id="imp-gc-btn" style="background:var(--green)">\u2B06 Import Gift Cards (.xlsx)</button></div>'+
     '<div class="admin-card"><h3 style="font-size:14px;font-weight:600;margin-bottom:12px">Transactions ('+txs.length+')</h3>'+
     '<button class="export-btn" id="export-btn">\u2B07 Export All Transactions to Spreadsheet</button></div>'+
     '<button class="back-btn" id="admin-back" style="padding-bottom:24px">\u2190 Back to lookup</button>';
 
     document.getElementById('admin-content').innerHTML=h;
     document.getElementById('export-btn').addEventListener('click',function(){exportTx(txs)});
+    document.getElementById('imp-rw-btn').addEventListener('click',function(){tab='rewards';triggerImport();});
+    document.getElementById('imp-gc-btn').addEventListener('click',function(){tab='giftcards';triggerImport();});
     document.getElementById('admin-back').addEventListener('click',function(){window.location.hash='';route()});
   });
 }
