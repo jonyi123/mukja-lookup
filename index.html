@@ -155,6 +155,7 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 <script>
 var sb=null,tab='rewards',sel=null,gcCount=0,rwCount=0;
 var ADMIN_PIN='5531';
+var _processing=false;
 var REWARDS_CUTOFF=new Date('2026-05-01T00:00:00');
 function rewardsActive(){return Date.now()<REWARDS_CUTOFF.getTime()}
 var UNDO_WINDOW_MS=60000;
@@ -364,6 +365,7 @@ function renderDetailView(){
   // Redeem card
   h+='<div class="d-card">';
   if(!isG){
+    h+='<div style="background:rgba(255,149,0,.08);border:1px solid rgba(255,149,0,.2);border-radius:10px;padding:10px 14px;margin-bottom:12px;font:500 14px \'DM Sans\',sans-serif;color:var(--orange);text-align:center">\u26A0\uFE0F Rewards program ends April 30, 2026. Redeem your points before then.</div>';
     if(bal>0)h+='<button class="redeem-btn" id="redeem-btn"><div class="rb-pts">'+bal+' pts</div><div class="rb-val">'+fM(p2c(bal))+' off bill</div><div class="rb-lbl">Tap to redeem all points</div></button>';
     else h+='<div class="no-pts">No points available to redeem</div>';
   }else{
@@ -445,8 +447,10 @@ function confirmRedeem(pts,val){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',closeModal);
   document.getElementById('m-ok').addEventListener('click',function(){
+    if(_processing)return;_processing=true;
     var n=(document.getElementById('m-note')||{}).value||'Points redemption';
     sb.from('transactions').insert({card_number:sel.c,type:'rewards',amount:pts,cash_value:val,note:n}).then(function(r){
+      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Redeemed '+pts+' pts ('+fM(val)+' off)','ok');
       openDetail(window._res.indexOf(sel));
@@ -467,7 +471,9 @@ function confirmGCDeduct(){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',closeModal);
   document.getElementById('m-ok').addEventListener('click',function(){
+    if(_processing)return;_processing=true;
     sb.from('transactions').insert({card_number:sel.c,type:'giftcard',amount:amt,cash_value:amt,note:note}).then(function(r){
+      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Deducted '+fM(amt),'ok');
       openDetail(window._res.indexOf(sel));
@@ -482,10 +488,11 @@ function confirmUndo(tx){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',function(){closeModal();renderDetailView()});
   document.getElementById('m-del').addEventListener('click',function(){
-    // Insert a reversal (negative amount)
+    if(_processing)return;_processing=true;
     var revAmt=-Math.abs(amt);
     var revCash=-Math.abs(Number(tx.cash_value));
     sb.from('transactions').insert({card_number:tx.card_number,type:tx.type,amount:revAmt,cash_value:revCash,note:'Undo: '+(tx.note||'transaction')}).then(function(r){
+      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Transaction reversed','ok');
       openDetail(window._res.indexOf(sel));
