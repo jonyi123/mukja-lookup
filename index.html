@@ -417,16 +417,16 @@ function renderDetailView(){
   // Event handlers
   document.getElementById('back-btn').addEventListener('click',function(){renderSearchView()});
   if(!isG&&bal>0){
-    document.getElementById('redeem-btn').addEventListener('click',function(){confirmRedeem(bal,p2c(bal))});
+    document.getElementById('redeem-btn').addEventListener('click',function(){this.disabled=true;this.style.opacity='.5';confirmRedeem(bal,p2c(bal))});
   }
   if(isG&&bal>0){
     var amtEl=document.getElementById('d-amt');
     var btnEl=document.getElementById('d-btn');
     amtEl.addEventListener('input',function(){btnEl.disabled=!amtEl.value});
-    btnEl.addEventListener('click',function(){confirmGCDeduct()});
+    btnEl.addEventListener('click',function(){this.disabled=true;confirmGCDeduct()});
   }
   if(canUndo&&lastPositive){
-    document.getElementById('undo-btn').addEventListener('click',function(){confirmUndo(lastPositive)});
+    document.getElementById('undo-btn').addEventListener('click',function(){this.disabled=true;this.style.opacity='.5';confirmUndo(lastPositive)});
     // Countdown timer
     var timerEl=document.getElementById('undo-timer');
     var txT=new Date(lastPositive.created_at).getTime();
@@ -447,10 +447,9 @@ function confirmRedeem(pts,val){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',closeModal);
   document.getElementById('m-ok').addEventListener('click',function(){
-    if(_processing)return;_processing=true;
+    this.disabled=true;this.textContent='Processing...';
     var n=(document.getElementById('m-note')||{}).value||'Points redemption';
     sb.from('transactions').insert({card_number:sel.c,type:'rewards',amount:pts,cash_value:val,note:n}).then(function(r){
-      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Redeemed '+pts+' pts ('+fM(val)+' off)','ok');
       openDetail(window._res.indexOf(sel));
@@ -471,9 +470,8 @@ function confirmGCDeduct(){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',closeModal);
   document.getElementById('m-ok').addEventListener('click',function(){
-    if(_processing)return;_processing=true;
+    this.disabled=true;this.textContent='Processing...';
     sb.from('transactions').insert({card_number:sel.c,type:'giftcard',amount:amt,cash_value:amt,note:note}).then(function(r){
-      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Deducted '+fM(amt),'ok');
       openDetail(window._res.indexOf(sel));
@@ -488,11 +486,10 @@ function confirmUndo(tx){
   document.getElementById('overlay-bg').addEventListener('click',function(e){if(e.target===this)closeModal()});
   document.getElementById('m-cancel').addEventListener('click',function(){closeModal();renderDetailView()});
   document.getElementById('m-del').addEventListener('click',function(){
-    if(_processing)return;_processing=true;
+    this.disabled=true;this.textContent='Processing...';
     var revAmt=-Math.abs(amt);
     var revCash=-Math.abs(Number(tx.cash_value));
     sb.from('transactions').insert({card_number:tx.card_number,type:tx.type,amount:revAmt,cash_value:revCash,note:'Undo: '+(tx.note||'transaction')}).then(function(r){
-      _processing=false;
       if(r.error){showToast('Error: '+r.error.message,'err');return}
       closeModal();showToast('Transaction reversed','ok');
       openDetail(window._res.indexOf(sel));
