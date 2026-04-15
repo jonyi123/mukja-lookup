@@ -23,12 +23,14 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 .view.hide{display:none}
 
 .header{padding:20px 0 14px;text-align:center;flex-shrink:0}
-.header h1{font-size:28px;font-weight:700;letter-spacing:-.5px}
+.header h1{font-size:28px;font-weight:800;letter-spacing:-.5px;text-transform:uppercase}
 .header p{font-size:14px;color:var(--text2);margin-top:2px}
 
 .tabs{display:flex;background:rgba(0,0,0,.05);border-radius:10px;padding:3px;margin-bottom:14px;flex-shrink:0}
 .tab{flex:1;padding:11px;border:none;background:transparent;border-radius:8px;font:600 15px 'DM Sans',sans-serif;color:var(--text2);cursor:pointer;transition:all .2s}
 .tab.on{background:var(--card);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.tab.on-rw{background:var(--accent);color:#fff;box-shadow:0 1px 4px rgba(0,113,227,.3)}
+.tab.on-gc{background:var(--green);color:#fff;box-shadow:0 1px 4px rgba(52,199,89,.3)}
 
 .import-bar{background:var(--card);border-radius:var(--radius-sm);padding:10px 16px;border:1px solid var(--border);margin-bottom:12px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
 .badge{display:inline-flex;align-items:center;gap:5px;background:rgba(52,199,89,.1);color:var(--green);padding:5px 12px;border-radius:6px;font:600 13px 'DM Sans',sans-serif}
@@ -153,6 +155,8 @@ body{font-family:'DM Sans',-apple-system,BlinkMacSystemFont,sans-serif;backgroun
 <script>
 var sb=null,tab='rewards',sel=null,gcCount=0,rwCount=0;
 var ADMIN_PIN='5531';
+var REWARDS_CUTOFF=new Date('2026-05-01T00:00:00');
+function rewardsActive(){return Date.now()<REWARDS_CUTOFF.getTime()}
 var UNDO_WINDOW_MS=60000;
 
 function loadCfg(){try{return JSON.parse(localStorage.getItem('mukja-cfg'))}catch(e){return null}}
@@ -222,22 +226,26 @@ function renderSetup(isSettings){
 
 // ── SEARCH VIEW ──
 function renderSearchView(){
+  var ra=rewardsActive();
+  if(!ra)tab='giftcards';
   var isGC=tab==='giftcards';
   document.getElementById('app').innerHTML=
     '<div class="view" id="search-view" style="position:relative">'+
     '<button class="gear-btn" id="gear-btn">\u2699\uFE0F</button>'+
-    '<div class="header"><h1>Customer Lookup</h1><p>Gift Cards & Rewards Points</p></div>'+
-    '<div class="tabs">'+
-    '<button class="tab'+(tab==='rewards'?' on':'')+'" id="tab-rw">Rewards Points</button>'+
-    '<button class="tab'+(tab==='giftcards'?' on':'')+'" id="tab-gc">Gift Cards</button>'+
-    '</div>'+
+    '<div class="header"><h1>Customer Lookup</h1><p>'+(ra?'Gift Cards & Rewards Points':'Gift Card Balance Lookup')+'</p></div>'+
+    (ra?'<div class="tabs">'+
+    '<button class="tab'+(tab==='rewards'?' on-rw':'')+'" id="tab-rw">Rewards Points</button>'+
+    '<button class="tab'+(tab==='giftcards'?' on-gc':'')+'" id="tab-gc">Gift Cards</button>'+
+    '</div>':'')+
     
     '<div class="search-box"><span class="search-ico">\uD83D\uDD0D</span>'+
     '<input class="search-input" id="search" placeholder="'+(isGC?'Search by card number...':'Search by phone, email, or card #...')+'">'+'</div>'+
     '<div class="scroll" id="results"></div>'+
     '</div>';
-  document.getElementById('tab-rw').addEventListener('click',function(){tab='rewards';renderSearchView()});
-  document.getElementById('tab-gc').addEventListener('click',function(){tab='giftcards';renderSearchView()});
+  if(ra){
+    document.getElementById('tab-rw').addEventListener('click',function(){tab='rewards';renderSearchView()});
+    document.getElementById('tab-gc').addEventListener('click',function(){tab='giftcards';renderSearchView()});
+  }
   document.getElementById('gear-btn').addEventListener('click',function(){window.location.hash='#settings'});
   document.getElementById('search').addEventListener('input',function(e){
     clearTimeout(window._st);window._st=setTimeout(function(){doSearch(e.target.value)},300);
