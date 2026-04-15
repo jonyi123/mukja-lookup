@@ -231,12 +231,11 @@ function renderSearchView(){
     '<button class="tab'+(tab==='rewards'?' on':'')+'" id="tab-rw">Rewards Points</button>'+
     '<button class="tab'+(tab==='giftcards'?' on':'')+'" id="tab-gc">Gift Cards</button>'+
     '</div>'+
-    '<div class="import-bar" id="import-bar"></div>'+
+    
     '<div class="search-box"><span class="search-ico">\uD83D\uDD0D</span>'+
     '<input class="search-input" id="search" placeholder="'+(isGC?'Search by card number...':'Search by phone, email, or card #...')+'">'+'</div>'+
     '<div class="scroll" id="results"></div>'+
     '</div>';
-  renderBadge();
   document.getElementById('tab-rw').addEventListener('click',function(){tab='rewards';renderSearchView()});
   document.getElementById('tab-gc').addEventListener('click',function(){tab='giftcards';renderSearchView()});
   document.getElementById('gear-btn').addEventListener('click',function(){window.location.hash='#settings'});
